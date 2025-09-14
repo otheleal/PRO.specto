@@ -165,7 +165,7 @@ export const carregarDadosRemotos = async (): Promise<Cliente[]> => {
         ]);
 
         const resultadoParseClientes = await new Promise<any>((resolve, reject) => {
-            Papa.parse(textoClientes, { header: true, skipEmptyLines: true, delimiter: ",", complete: resolve, error: reject });
+            Papa.parse(textoClientes, { header: true, skipEmptyLines: true, delimiter: ";", complete: resolve, error: reject });
         });
         if (resultadoParseClientes.errors.length > 0) throw new Error(`Erro no CSV de clientes: ${resultadoParseClientes.errors[0].message}`);
         
@@ -173,7 +173,7 @@ export const carregarDadosRemotos = async (): Promise<Cliente[]> => {
 
         if (textoVendas) {
             const resultadoParseVendas = await new Promise<any>((resolve, reject) => {
-                Papa.parse(textoVendas, { header: true, skipEmptyLines: true, delimiter: ",", complete: resolve, error: reject });
+                Papa.parse(textoVendas, { header: true, skipEmptyLines: true, delimiter: ";", complete: resolve, error: reject });
             });
             if (resultadoParseVendas.errors.length > 0) throw new Error(`Erro no CSV de vendas: ${resultadoParseVendas.errors[0].message}`);
             
