@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Especificação PRO.</title>
+
+    <!-- LeafletJS CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        /* Reset e Configurações Globais */
+        :root {
+            --cor-primaria: #007bff;
+            --cor-secundaria: #6c757d;
+            --cor-sucesso: #28a745;
+            --cor-perigo: #dc3545;
+            --cor-aviso: #ffc107;
+            --cor-info: #17a2b8;
+            --cor-fundo: #f8f9fa;
+            --cor-texto: #212529;
+            --cor-branco: #ffffff;
+            --sombra-padrao: 0 4px 12px rgba(0,0,0,0.1);
+            --painel-largura: clamp(380px, 30vw, 550px); /* Largura responsiva do painel lateral */
+            --transicao-padrao: all 0.3s ease-in-out;
+        }
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--cor-fundo);
+        }
+
+        /* --- NOVO: Overlay de Carregamento --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 4000;
+            display: none; /* Inicia oculto, controlado por JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            color: var(--cor-texto);
+        }
+        #loading-overlay .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0,0,0,0.1);
+            border-top-color: var(--cor-primaria);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        #loading-overlay p {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Mapa */
+        #mapa {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            transition: margin-left 0.3s ease-in-out;
+        }
+        #mapa.modo-selecao {
+            cursor: crosshair !important;
+        }
+        .leaflet-control-zoom { 
+            margin-top: 80px !important; 
+            transition: left 0.3s ease-in-out;
+        }
+
+        /* Controles sobre o mapa */
+        .map-controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            transition: left 0.3s ease-in-out;
+            align-items: center; /* Alinha itens verticalmente */
+        }
+
+        .map-btn {
+            background-color: var(--cor-branco);
+            color: var(--cor-texto);
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--sombra-padrao);
+            transition: all 0.2s ease-in-out;
+        }
+        .map-btn:hover {
+            background-color: #f1f1f1;
+            border-color: #bbb;
+        }
+        .map-btn.active {
+            background-color: var(--cor-primaria);
+            color: var(--cor-branco);
+            border-color: var(--cor-primaria);
+        }
+        .map-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: #e9ecef;
+        }
+        
+        /* --- NOVO: Estilos para a caixa de busca --- */
+        .busca-container {
+            display: flex;
+            background-color: var(--cor-branco);
+            border-radius: 8px;
+            box-shadow: var(--sombra-padrao);
+            border: 1px solid #ccc;
+            overflow: hidden; /* Garante que os cantos arredondados sejam aplicados */
+        }
+        #busca-endereco-input {
+            border: none;
+            padding: 10px 12px;
+            font-size: 14px;
+            outline: none;
+            width: 220px; /* Largura inicial */
+            transition: width 0.3s ease-in-out;
+        }
+        #busca-endereco-input:focus {
+             width: 280px; /* Expande ao focar */
+        }
+        #btn-busca-endereco {
+            background-color: #f8f9fa;
+            border: none;
+            border-left: 1px solid #ccc;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 12px;
+            color: var(--cor-secundaria);
+        }
+        #btn-busca-endereco:hover {
+            background-color: #e9ecef;
+            color: var(--cor-primaria);
+        }
+        #btn-busca-endereco:disabled .texto-btn { display: none; }
+        #btn-busca-endereco:disabled .btn-spinner { display: block; width: 16px; height: 16px; border-width: 2px; }
+
+        /* Botão Gravar e Animações */
+        #btn-gravar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--cor-perigo);
+            border: none;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+            transition: var(--transicao-padrao);
+        }
+        #btn-gravar.idle .mic-icon { display: block; }
+        #btn-gravar.idle .stop-icon { display: none; }
+        #btn-gravar.gravando .mic-icon { display: none; }
+        #btn-gravar.gravando .stop-icon { display: block; }
+        #btn-gravar.gravando { animation: pulse-red 1.5s infinite; }
+        #btn-gravar.inicializando { background-color: var(--cor-aviso); cursor: wait; }
+        #btn-gravar svg { color: white; width: 24px; height: 24px; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* Painel Lateral de Filtros */
+        .painel-lateral {
+            position: absolute;
+            top: 0;
+            left: -350px; /* Escondido por padrão */
+            width: 330px;
+            height: 100%;
+            background-color: var(--cor-branco);
+            z-index: 1001;
+            box-shadow: var(--sombra-padrao);
+            transition: left 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+        }
+        .painel-lateral.visivel { left: 0; }
+        .painel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .painel-header h2 { margin: 0; font-size: 18px; }
+        .painel-header #btn-fechar-filtros {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+            padding: 0;
+            line-height: 1;
+        }
+        .painel-header #btn-fechar-filtros:hover {
+            color: #333;
+        }
+        .painel-conteudo { padding: 20px; overflow-y: auto; flex-grow: 1; }
+        .grupo-filtro { margin-bottom: 25px; }
+        .grupo-filtro label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .grupo-filtro select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .painel-footer { padding: 20px; border-top: 1px solid #eee; }
+        #btn-limpar-filtros {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--cor-secundaria);
+            color: var(--cor-branco);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #btn-limpar-filtros:hover { background-color: #5a6268; }
+        
+        /* Slider de Range Duplo */
+        .container-slider { position: relative; height: 30px; }
+        .slider-track, .slider-range {
+            position: absolute;
+            height: 4px;
+            border-radius: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+        }
+        .slider-track { background-color: #ddd; }
+        .slider-range { background-color: var(--cor-primaria); z-index: 2; }
+        .container-slider input[type=range] {
+            position: absolute;
+            width: 100%;
+            pointer-events: none;
+            -webkit-appearance: none;
+            background: transparent;
+            z-index: 3;
+            margin: 0;
+        }
+        .container-slider input[type=range]::-webkit-slider-thumb {
+            pointer-events: all;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--cor-primaria);
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+        .slider-valores {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        /* Modal de Upload */
+        .modal-container {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+        .overlay-modal {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-conteudo {
+            background-color: var(--cor-branco);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: var(--sombra-padrao);
+            width: 90%;
+            max-width: 500px;
+            z-index: 1;
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 { margin: 0; }
+        #btn-fechar-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+        }
+        .grupo-input label { display: block; margin-bottom: 10px; font-weight: 500; }
+        .grupo-input input[type="file"] {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .grupo-input input[type="file"] {
+            border-style: dashed;
+            padding: 15px;
+        }
+        #btn-processar-arquivos {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: var(--cor-sucesso);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        #btn-processar-arquivos:disabled { background-color: #aaa; }
+        .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Banner de Erro */
+        #banner-erro-api {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--cor-perigo);
+            color: white;
+            padding: 15px;
+            z-index: 3000;
+            font-size: 14px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #banner-erro-api .conteudo-banner {
+            flex-grow: 1;
+            text-align: left;
+        }
+        .btn-fechar-banner {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 22px;
+            margin-left: 15px;
+            cursor: pointer;
+            padding: 0 5px;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .btn-fechar-banner:hover {
+            opacity: 1;
+        }
+
+        /* Overlay de Erro Crítico no Mapa */
+        #map-overlay-error {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(33, 37, 41, 0.85);
+            z-index: 1500;
+            color: var(--cor-branco);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #map-overlay-error .conteudo-overlay {
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        #map-overlay-error .conteudo-overlay svg {
+            width: 40px;
+            height: 40px;
+            color: var(--cor-perigo);
+        }
+        #map-overlay-error .conteudo-overlay h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+        #map-overlay-error .conteudo-overlay p {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        /* Popups do Leaflet */
+        .popup-cliente .leaflet-popup-content-wrapper { border-radius: 8px; }
+        .popup-cliente .leaflet-popup-content { margin: 15px; width: auto !important; }
+        .info-cliente-popup strong { color: var(--cor-texto); }
+        .info-cliente-popup hr { border: 0; border-top: 1px solid #eee; margin: 10px 0; }
+        .subtitulo-popup { color: #888; font-size: 12px; }
+        .valor-info { color: #555; }
+        .valor-info-data { color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .container-grafico { width: 100%; height: 180px; margin-top: 15px; }
+        .sem-dados-grafico { text-align: center; color: #999; padding: 20px 0; }
+
+        /* Popup de Confirmação de Análise - ESTILOS NOVOS */
+        .popup-endereco-confirmacao {
+            font-size: 13px;
+            color: var(--cor-secundaria);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+        .popup-botoes-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .popup-botoes-container .map-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+        .popup-botoes-container .btn-cancelar {
+            background-color: transparent;
+            border-color: transparent;
+            color: var(--cor-secundaria);
+            box-shadow: none;
+        }
+        .popup-botoes-container .btn-cancelar:hover {
+            background-color: #f1f1f1;
+        }
+        .popup-botoes-container .btn-confirmar {
+            background-color: var(--cor-sucesso);
+            color: white;
+            border-color: var(--cor-sucesso);
+        }
+        .popup-botoes-container .btn-confirmar:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        .popup-botoes-container .btn-confirmar .btn-spinner {
+            width: 14px; height: 14px;
+        }
+        .popup-botoes-container .btn-confirmar.processando .texto-btn { display: none; }
+        .popup-botoes-container .btn-confirmar.processando .btn-spinner { display: block; }
+        
+        /* Marcador de Análise Final "O que tem aqui?" */
+        .pino-personalizado {
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" fill="%23dc3545"><path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67a24 24 0 01-43.464 0zM192 256a64 64 0 100-128 64 64 0 000 128z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            width: 32px;
+            height: 42px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+        .leaflet-marker-draggable .pino-personalizado {
+            cursor: move;
+        }
+        .leaflet-marker-icon.pino-personalizado {
+             animation: pino-fade-in 0.3s ease-out;
+        }
+
+        @keyframes pino-fade-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Marcador de Confirmação de Análise */
+        .pino-confirmacao {
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" fill="%23007bff"><path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67a24 24 0 01-43.464 0zM192 256a64 64 0 100-128 64 64 0 000 128z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            width: 32px;
+            height: 42px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            cursor: move;
+        }
+        .leaflet-marker-icon.pino-confirmacao {
+             animation: pino-fade-in 0.3s ease-out;
+        }
+
+        /* Seções de API no Popup "O que tem aqui?" */
+        .info-secao-api {
+            padding: 8px;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .info-secao-api:last-child { margin-bottom: 0; }
+        .titulo-secao-api {
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .info-secao-api .sem-resultado {
+            color: #888;
+            font-style: italic;
+        }
+        .info-secao-api p {
+            margin: 3px 0;
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .info-secao-api p strong {
+             color: #333;
+        }
+        .info-secao-api sup a {
+            color: var(--cor-info);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .info-secao-api sup a:hover {
+            text-decoration: underline;
+        }
+
+
+        /* Nota do Assistente no Popup */
+        .nota-assistente {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e7f3fe;
+            border-left: 3px solid #007bff;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            gap: 8px;
+            color: #000; /* Cor da fonte preta para melhor legibilidade */
+        }
+        .icone-nota-assistente { font-size: 16px; }
+
+        .fontes-assistente {
+            font-size: 12px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            margin-top: 10px;
+        }
+        .fontes-assistente p {
+            margin: 0 0 8px 0;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6c757d;
+        }
+        .fontes-assistente ul {
+            list-style: disc;
+            padding-left: 20px;
+            margin: 0;
+        }
+        .fontes-assistente li {
+            margin-bottom: 5px;
+        }
+        .fontes-assistente a {
+            color: var(--cor-primaria);
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .fontes-assistente a:hover {
+            text-decoration: underline;
+        }
+
+        /* Lista de Lugares no Painel */
+        .lista-lugares-painel {
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .lista-lugares-painel .lista-lugares-titulo {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--cor-texto);
+        }
+        .lista-lugares-painel ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px; /* Altura máxima para a lista */
+            overflow-y: auto;
+        }
+        .lista-lugares-painel li .btn-lugar-painel {
+            width: 100%;
+            padding: 8px 5px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
+            text-align: left;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1.3;
+            transition: background-color 0.2s;
+        }
+        .lista-lugares-painel li .btn-lugar-painel:hover { background-color: #f7f7f7; }
+        .lista-lugares-painel li:last-child .btn-lugar-painel { border-bottom: none; }
+        .lista-lugares-painel .btn-lugar-painel strong { color: var(--cor-primaria); }
+
+        /* --- Matriz de Dados --- */
+        .matriz-dados-container { width: 100%; }
+        
+        /* Layout do cabeçalho do painel com botões */
+        #painel-matriz-teste .painel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #painel-matriz-teste .painel-header h2 {
+            flex-grow: 1; /* Título ocupa o espaço disponível */
+        }
+        #painel-header-botoes {
+            display: flex;
+            gap: 8px;
+        }
+        #painel-header-botoes .map-btn {
+            padding: 5px 10px !important;
+            font-size: 12px !important;
+            flex-shrink: 0;
+            gap: 6px;
+        }
+        #painel-header-botoes .btn-spinner {
+             width: 14px; height: 14px;
+        }
+        
+        /* Layout Pivotado */
+        .matriz-dados-pivot {
+            border-collapse: collapse;
+            font-size: 11px;
+            width: 100%; /* Ocupa a largura do contêiner */
+            table-layout: fixed; /* Distribui o espaço igualmente, a menos que especificado */
+        }
+        .matriz-dados-pivot thead {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .matriz-dados-pivot th,
+        .matriz-dados-pivot td {
+            padding: 2px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+            word-wrap: break-word; /* Permite quebrar palavras longas */
+            color: #000; /* Cor da fonte preta para todas as células */
+        }
+        .matriz-dados-pivot th {
+            font-weight: 600;
+            white-space: nowrap; /* Mantém cabeçalhos em uma linha */
+            padding: 5px 8px;
+        }
+        /* Coluna de Campos (1a coluna) */
+        .matriz-dados-pivot td:first-child {
+            font-weight: 500;
+            white-space: nowrap; /* Mantém a primeira coluna sem quebra */
+            width: 25%; /* Define uma largura fixa para a coluna de campos */
+            padding-left: 8px;
+        }
+        .matriz-dados-pivot tr:last-child td {
+            border-bottom: none;
+        }
+        .matriz-dados-pivot tr.campo-oculto {
+            display: none;
+        }
+
+        .matriz-input-valor {
+            width: 100%;
+            border: 1px solid transparent;
+            background-color: transparent;
+            padding: 6px;
+            font-size: 11px;
+            font-family: inherit;
+            color: inherit;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            min-height: 28px;
+            resize: none;
+            overflow-y: hidden;
+            line-height: 1.4;
+        }
+        .matriz-input-valor:hover {
+            border-color: #ddd;
+            background-color: #f7f7f7;
+        }
+        .matriz-input-valor:focus {
+            outline: none;
+            border-color: var(--cor-primaria);
+            background-color: white;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+        }
+
+        .matriz-texto-info {
+            padding: 4px 6px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        #btn-prospectar {
+            background-color: var(--cor-sucesso);
+            color: var(--cor-branco);
+        }
+        #btn-prospectar:disabled {
+            background-color: #a5d6a7;
+            border-color: #a5d6a7;
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        /* --- NOVO: ESTILOS: Matriz com seletor --- */
+        #painel-matriz-seletor-container {
+            padding: 0 20px; /* Alinha com o padding do conteúdo */
+            flex-shrink: 0; /* Impede que o container encolha */
+        }
+        .matriz-switcher {
+            display: flex;
+            justify-content: flex-start;
+            gap: 16px;
+            border-bottom: 1px solid #eee;
+        }
+        .switcher-btn {
+            background: none;
+            border: none;
+            padding: 10px 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--cor-secundaria);
+            position: relative;
+            border-bottom: 3px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+            margin-bottom: -1px; /* Faz a borda ativa sobrepor a borda do container */
+        }
+        .switcher-btn:hover { color: var(--cor-primaria); }
+        .switcher-btn.active {
+            color: var(--cor-primaria);
+            border-bottom-color: var(--cor-primaria);
+        }
+        
+        /* --- NOVO: Layout de Painel Lateral Fixo --- */
+        #painel-matriz-teste {
+            position: fixed;
+            top: 0;
+            left: calc(-1 * var(--painel-largura)); /* Começa fora da tela */
+            width: var(--painel-largura);
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            border-radius: 0;
+            border-right: 1px solid #ddd;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            background-color: var(--cor-branco);
+            z-index: 1002;
+            display: flex;
+            flex-direction: column;
+            transition: left 0.3s ease-in-out;
+        }
+        #painel-matriz-teste.visivel {
+            left: 0; /* Desliza para a visão */
+        }
+        #painel-matriz-teste .painel-header {
+            cursor: default; /* Não é mais arrastável */
+        }
+        #btn-fechar-painel-matriz {
+             background: none; border: none; font-size: 20px; cursor: pointer; color: #888;
+        }
+        #painel-matriz-teste .painel-conteudo {
+            padding: 15px 20px;
+            overflow: auto;
+            flex-grow: 1;
+        }
+        .painel-pino-conector {
+            display: none; /* Não é mais necessário */
+        }
+        
+        /* Ajustes no layout quando o painel está ativo */
+        body.painel-lateral-ativo #mapa {
+            margin-left: var(--painel-largura);
+            width: calc(100% - var(--painel-largura));
+        }
+        body.painel-lateral-ativo .map-controls {
+            left: calc(var(--painel-largura) + 15px);
+        }
+        body.painel-lateral-ativo .leaflet-control-zoom {
+            left: calc(var(--painel-largura));
+        }
+        body.painel-lateral-ativo #btn-gravar {
+            left: calc(var(--painel-largura) + 30px);
+        }
+        
+        /* Marcador de Localização do Usuário */
+        .marcador-localizacao-usuario .ponto-central {
+            width: 18px;
+            height: 18px;
+            background-color: #007bff;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .marcador-localizacao-usuario .pulso {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: #007bff;
+            position: absolute;
+            animation: pulse-blue 2s infinite;
+        }
+        @keyframes pulse-blue {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
+            70% { transform: scale(2.5); box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+        }
+
+        /* Popups de Nota de Voz */
+        .container-icone-nota-voz {
+            background-color: var(--cor-aviso);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid white;
+            box-shadow: var(--sombra-padrao);
+        }
+        .container-icone-nota-voz svg { color: white; }
+        .marcador-gravando .container-icone-nota-voz {
+            animation: pulse-yellow 1.5s infinite;
+        }
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+        .popup-nota-voz {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .player-audio-customizado { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .container-anel-progresso { position: relative; width: 40px; height: 40px; }
+        .anel-progresso { transform: rotate(-90deg); }
+        .anel-progresso__bg { stroke: #eee; }
+        .anel-progresso__circulo { stroke: var(--cor-primaria); transition: stroke-dashoffset 0.1s; }
+        .btn-controle-player {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: none;
+            border: none;
+            width: 100%; height: 100%;
+            cursor: pointer;
+            padding: 0;
+            border-radius: 50%;
+        }
+        .btn-controle-player svg { width: 16px; height: 16px; fill: var(--cor-primaria); }
+        .btn-controle-player .icone-play { display: block; }
+        .btn-controle-player .icone-pause { display: none; }
+        .btn-controle-player[data-state="playing"] .icone-play { display: none; }
+        .btn-controle-player[data-state="playing"] .icone-pause { display: block; }
+        .display-tempo { font-size: 11px; color: #555; }
+        .wrapper-transcricao { flex-grow: 1; }
+        .texto-transcricao { font-size: 14px; min-height: 40px; }
+        .texto-transcricao.processando { color: #888; font-style: italic; }
+        .btn-excluir-nota, .btn-excluir-audio {
+            background: none; border: none; font-size: 11px; color: var(--cor-perigo);
+            cursor: pointer; padding: 2px; margin-top: 5px;
+        }
+        .btn-excluir-audio { color: var(--cor-secundaria); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Overlay de Carregamento -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+    </div>
+
+    <!-- Mapa -->
+    <div id="mapa"></div>
+
+    <!-- Overlay de Erro Crítico -->
+    <div id="map-overlay-error"></div>
+
+    <!-- Banner de Erro -->
+    <div id="banner-erro-api">
+        <!-- Conteúdo injetado via JavaScript -->
+    </div>
+
+    <!-- Controles do Mapa -->
+    <div class="map-controls">
+        <button id="btn-toggle-filtros" class="map-btn">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            <span>Filtros</span>
+        </button>
+        <button id="btn-oque-tem-aqui" class="map-btn" title="Analisar um local no mapa">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <span>Analisar Local</span>
+        </button>
+        <button id="btn-atualizar-dados" class="map-btn" title="Forçar a recarga dos dados da nuvem">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span>Atualizar Dados</span>
+        </button>
+    </div>
+
+    <!-- Botão de Gravação -->
+    <button id="btn-gravar" class="map-btn idle" title="Gravar nota de voz" aria-label="Gravar nota de voz">
+      <svg class="mic-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+      <svg class="stop-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"></path></svg>
+    </button>
+    
+    <!-- Painel de Filtros -->
+    <div class="painel-lateral">
+        <div class="painel-header">
+            <h2>Filtros</h2>
+            <button id="btn-fechar-filtros" title="Fechar painel">&times;</button>
+        </div>
+        <div class="painel-conteudo">
+            <div class="grupo-filtro">
+                <label for="filtro-mesorregiao">Mesorregião</label>
+                <select id="filtro-mesorregiao"><option value="">Todas</option></select>
+            </div>
+            <div class="grupo-filtro">
+                <label for="filtro-microrregiao">Microrregião</label>
+                <select id="filtro-microrregiao"><option value="">Todas</option></select>
+            </div>
+            <div class="grupo-filtro">
+                <label for="filtro-cidade">Cidade</label>
+                <select id="filtro-cidade"><option value="">Todas</option></select>
+            </div>
+            <div class="grupo-filtro">
+                <label>Venda Anual</label>
+                <div class="container-slider">
+                    <div class="slider-track"></div>
+                    <div class="slider-range"></div>
+                    <input type="range" id="filtro-venda-min" value="0" min="0" max="100000">
+                    <input type="range" id="filtro-venda-max" value="100000" min="0" max="100000">
+                </div>
+                <div class="slider-valores">
+                    <span id="valor-venda-min">R$ 0</span>
+                    <span id="valor-venda-max">R$ 100.000</span>
+                </div>
+            </div>
+            <div class="grupo-filtro">
+                <label>Data da Última Compra</label>
+                 <div class="container-slider">
+                    <div class="slider-track"></div>
+                    <div class="slider-range"></div>
+                    <input type="range" id="filtro-data-min" value="0" min="0" max="1">
+                    <input type="range" id="filtro-data-max" value="1" min="0" max="1">
+                </div>
+                <div class="slider-valores">
+                    <span id="valor-data-min">Início</span>
+                    <span id="valor-data-max">Fim</span>
+                </div>
+            </div>
+        </div>
+        <div class="painel-footer">
+            <button id="btn-limpar-filtros">Limpar Filtros</button>
+        </div>
+    </div>
+
+    <!-- Painel Fixo de Análise -->
+    <div id="painel-matriz-teste">
+        <div class="painel-header">
+            <h2>Informações</h2>
+            <div id="painel-header-botoes">
+                <!-- Botões são injetados aqui via JS -->
+            </div>
+            <button id="btn-fechar-painel-matriz" title="Fechar painel">&times;</button>
+        </div>
+        <div id="painel-matriz-seletor-container"></div>
+        <div class="painel-conteudo">
+            <!-- O conteúdo da matriz será renderizado aqui -->
+        </div>
+        <div class="painel-pino-conector"></div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0"
+      }
+    }
+    </script>
+    <script type="module" src="/index.tsx"></script>
+
+</body>
+</html>

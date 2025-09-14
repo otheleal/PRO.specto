@@ -1,0 +1,8 @@
+{
+  "name": "PRO.specto",
+  "description": "",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
