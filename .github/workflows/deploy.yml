@@ -21,6 +21,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        # --- ADICIONE AS DUAS LINHAS ABAIXO ---
+        with:
+          lfs: true
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,11 +37,11 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Aponta para a pasta gerada pelo 'npm run build'
+          path: './dist'
 
   # Tarefa de deploy
   deploy:
-    needs: build # Só executa depois que a tarefa 'build' terminar com sucesso
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
