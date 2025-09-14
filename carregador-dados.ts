@@ -8,8 +8,8 @@ declare const Papa: any;
 // --- ALTERAÇÃO 1: URLs simplificadas ---
 // Agora que os arquivos estão na raiz do projeto no GitHub, podemos carregá-los diretamente.
 // AVISO: Certifique-se de que os nomes dos arquivos no seu repositório são exatamente estes.
-const URL_CLIENTES_CSV = './clientes.csv';
-const URL_VENDAS_CSV = './vendas.csv';
+const URL_CLIENTES_CSV = 'clientes.csv';
+const URL_VENDAS_CSV = 'vendas.csv';
 
 /**
  * Busca um arquivo de uma URL e o retorna como texto.
