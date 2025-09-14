@@ -1,28 +1,19 @@
+// dataLoader.ts (ou o nome do seu arquivo)
+
 import { Cliente, VendaDetalhada } from "./tipos";
 import { parseData } from "./utilitarios";
 
 declare const Papa: any;
 
-// --- URLs DOS ARQUIVOS DE DADOS ---
-// As URLs originais do Google Drive causam erros de CORS (Cross-Origin Resource Sharing)
-// porque o Google Drive não permite que outros sites acessem seus arquivos diretamente via fetch.
-// Para contornar isso temporariamente e permitir que o carregamento funcione, usamos um
-// "proxy CORS". Ele atua como um intermediário que adiciona os cabeçalhos necessários.
-//
-// AVISO: Esta solução com proxy público não é recomendada para produção.
-// Ela depende de um serviço de terceiros que pode ser lento ou instável.
-// A solução ideal é hospedar os arquivos em um serviço como o Google Cloud Storage
-// e configurar o CORS para permitir o acesso do seu domínio.
-const PROXY_URL = 'https://api.allorigins.win/raw?url=';
-const GOOGLE_DRIVE_URL_CLIENTES = 'https://drive.google.com/uc?export=download&id=1rZDO1_pXD_WVWR84SfyIrxNdL_2Pult9';
-const GOOGLE_DRIVE_URL_VENDAS = 'https://drive.google.com/uc?export=download&id=1rdWkVnKnu_q0hohwITYgd_KgN3Vxtzzs';
-
-const URL_CLIENTES_CSV = `${PROXY_URL}${encodeURIComponent(GOOGLE_DRIVE_URL_CLIENTES)}`;
-const URL_VENDAS_CSV = `${PROXY_URL}${encodeURIComponent(GOOGLE_DRIVE_URL_VENDAS)}`;
-
+// --- ALTERAÇÃO 1: URLs simplificadas ---
+// Agora que os arquivos estão na raiz do projeto no GitHub, podemos carregá-los diretamente.
+// AVISO: Certifique-se de que os nomes dos arquivos no seu repositório são exatamente estes.
+const URL_CLIENTES_CSV = './clientes.csv';
+const URL_VENDAS_CSV = './vendas.csv';
 
 /**
  * Busca um arquivo de uma URL e o retorna como texto.
+ * (Esta função permanece a mesma, pois funciona perfeitamente com URLs relativas)
  */
 const fetchArquivo = async (url: string, nomeArquivo: string): Promise<string> => {
     try {
@@ -33,42 +24,43 @@ const fetchArquivo = async (url: string, nomeArquivo: string): Promise<string> =
         return await response.text();
     } catch (error) {
         console.error(`Erro de rede ao buscar ${url}:`, error);
-        throw new Error(`Não foi possível conectar ao servidor para baixar o arquivo ${nomeArquivo}. Verifique a URL e a configuração de CORS.`);
+        throw new Error(`Não foi possível encontrar o arquivo ${nomeArquivo} no projeto. Verifique o caminho e o nome do arquivo.`);
     }
 };
 
 /**
  * Processa os dados de um CSV de clientes.
+ * (Nenhuma alteração necessária aqui)
  */
 const processarCsvClientes = (dadosCsv: any[]): Cliente[] => {
     if (!dadosCsv || dadosCsv.length === 0) {
         throw new Error("O arquivo de clientes está vazio ou em formato inválido.");
     }
-    
+
     const headers = Object.keys(dadosCsv[0]).map(h => h.toLowerCase());
     
     const encontrarCabecalho = (opcoes: string[]) => {
         for (const opcao of opcoes) {
             const cabecalhoEncontrado = headers.find(h => h.includes(opcao.toLowerCase()));
             if (cabecalhoEncontrado) {
-                 const cabecalhoOriginal = Object.keys(dadosCsv[0]).find(h => h.toLowerCase() === cabecalhoEncontrado);
-                 return cabecalhoOriginal;
+                const cabecalhoOriginal = Object.keys(dadosCsv[0]).find(h => h.toLowerCase() === cabecalhoEncontrado);
+                return cabecalhoOriginal;
             }
         }
         return null;
     };
 
     const mapeamento = {
-      codigo: encontrarCabecalho(['cliente [cód]', 'código']),
-      nome: encontrarCabecalho(['cliente', 'nome']),
-      cnpj: encontrarCabecalho(['cnpj-cpf', 'cnpj']),
-      endereco: encontrarCabecalho(['endereço']),
-      cidade: encontrarCabecalho(['cidade']),
-      microrregiao: encontrarCabecalho(['microrregião']),
-      mesorregiao: encontrarCabecalho(['mesorregião']),
-      latitude: encontrarCabecalho(['latitude']),
-      longitude: encontrarCabecalho(['longitude']),
-      representante: encontrarCabecalho(['representante']),
+        codigo: encontrarCabecalho(['cliente [cód]', 'código']),
+        nome: encontrarCabecalho(['cliente', 'nome']),
+        cnpj: encontrarCabecalho(['cnpj-cpf', 'cnpj']),
+        endereco: encontrarCabecalho(['endereço']),
+        cidade: encontrarCabecalho(['cidade']),
+        microrregiao: encontrarCabecalho(['microrregião']),
+        mesorregiao: encontrarCabecalho(['mesorregião']),
+        latitude: encontrarCabecalho(['latitude']),
+        longitude: encontrarCabecalho(['longitude']),
+        representante: encontrarCabecalho(['representante']),
     };
 
     if (!mapeamento.codigo || !mapeamento.nome || !mapeamento.latitude || !mapeamento.longitude) {
@@ -103,6 +95,7 @@ const processarCsvClientes = (dadosCsv: any[]): Cliente[] => {
 
 /**
  * Processa os dados de um CSV de vendas, agregando os valores por cliente.
+ * (Nenhuma alteração necessária aqui)
  */
 const processarCsvVendas = (dadosCsv: any[]): Map<string, { total: number; dataMaisRecente: string; detalhes: VendaDetalhada[] }> => {
     if (!dadosCsv || dadosCsv.length === 0) {
@@ -155,12 +148,12 @@ const processarCsvVendas = (dadosCsv: any[]): Map<string, { total: number; dataM
     return vendasAgregadas;
 };
 
-
 /**
- * Orquestra o carregamento remoto, o processamento e a combinação dos dados.
+ * Orquestra o carregamento, o processamento e a combinação dos dados.
+ * // ALTERAÇÃO 2: Renomeado para maior clareza
  * @returns Uma promessa que resolve com a lista de clientes completa.
  */
-export const carregarDadosRemotos = async (): Promise<Cliente[]> => {
+export const carregarEProcessarDados = async (): Promise<Cliente[]> => {
     try {
         const [textoClientes, textoVendas] = await Promise.all([
             fetchArquivo(URL_CLIENTES_CSV, 'Clientes'),
