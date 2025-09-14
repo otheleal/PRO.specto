@@ -153,7 +153,7 @@ const processarCsvVendas = (dadosCsv: any[]): Map<string, { total: number; dataM
  * // ALTERAÇÃO 2: Renomeado para maior clareza
  * @returns Uma promessa que resolve com a lista de clientes completa.
  */
-export const carregarEProcessarDados = async (): Promise<Cliente[]> => {
+export const carregarDadosRemotos = async (): Promise<Cliente[]> => {
     try {
         const [textoClientes, textoVendas] = await Promise.all([
             fetchArquivo(URL_CLIENTES_CSV, 'Clientes'),
