@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Especificação PRO.</title>
 
-    <!-- LeafletJS CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
     <style>
@@ -33,6 +32,19 @@
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--cor-fundo);
+        }
+
+        /* --- CORREÇÃO: Adicionada classe para acessibilidade --- */
+        .visually-hidden {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
 
         /* --- NOVO: Overlay de Carregamento --- */
@@ -934,46 +946,48 @@
 </head>
 <body>
 
-    <!-- Overlay de Carregamento -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <p>Carregando dados...</p>
     </div>
 
-    <!-- Mapa -->
     <div id="mapa"></div>
 
-    <!-- Overlay de Erro Crítico -->
     <div id="map-overlay-error"></div>
 
-    <!-- Banner de Erro -->
     <div id="banner-erro-api">
-        <!-- Conteúdo injetado via JavaScript -->
-    </div>
+        </div>
 
-    <!-- Controles do Mapa -->
     <div class="map-controls">
         <button id="btn-toggle-filtros" class="map-btn">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-            <span>Filtros</span>
+             <span>Filtros</span>
         </button>
         <button id="btn-oque-tem-aqui" class="map-btn" title="Analisar um local no mapa">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            <span>Analisar Local</span>
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+             <span>Analisar Local</span>
         </button>
         <button id="btn-atualizar-dados" class="map-btn" title="Forçar a recarga dos dados da nuvem">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-            <span>Atualizar Dados</span>
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+             <span>Atualizar Dados</span>
         </button>
-    </div>
+        <div class="busca-container">
+            <label for="busca-endereco-input" class="visually-hidden">Buscar Endereço</label>
+            <input type="text" id="busca-endereco-input" placeholder="Buscar Endereço...">
+            <button id="btn-busca-endereco" class="map-btn">
+                <span class="texto-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </span>
+                <div class="btn-spinner"></div>
+            </button>
+        </div>
+        </div>
 
-    <!-- Botão de Gravação -->
     <button id="btn-gravar" class="map-btn idle" title="Gravar nota de voz" aria-label="Gravar nota de voz">
       <svg class="mic-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
       <svg class="stop-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"></path></svg>
     </button>
     
-    <!-- Painel de Filtros -->
     <div class="painel-lateral">
         <div class="painel-header">
             <h2>Filtros</h2>
@@ -993,7 +1007,7 @@
                 <select id="filtro-cidade"><option value="">Todas</option></select>
             </div>
             <div class="grupo-filtro">
-                <label>Venda Anual</label>
+                <label for="filtro-venda-min">Venda Anual</label>
                 <div class="container-slider">
                     <div class="slider-track"></div>
                     <div class="slider-range"></div>
@@ -1006,8 +1020,8 @@
                 </div>
             </div>
             <div class="grupo-filtro">
-                <label>Data da Última Compra</label>
-                 <div class="container-slider">
+                <label for="filtro-data-min">Data da Última Compra</label>
+                <div class="container-slider">
                     <div class="slider-track"></div>
                     <div class="slider-range"></div>
                     <input type="range" id="filtro-data-min" value="0" min="0" max="1">
@@ -1024,23 +1038,19 @@
         </div>
     </div>
 
-    <!-- Painel Fixo de Análise -->
     <div id="painel-matriz-teste">
         <div class="painel-header">
             <h2>Informações</h2>
             <div id="painel-header-botoes">
-                <!-- Botões são injetados aqui via JS -->
-            </div>
+                </div>
             <button id="btn-fechar-painel-matriz" title="Fechar painel">&times;</button>
         </div>
         <div id="painel-matriz-seletor-container"></div>
         <div class="painel-conteudo">
-            <!-- O conteúdo da matriz será renderizado aqui -->
-        </div>
+            </div>
         <div class="painel-pino-conector"></div>
     </div>
     
-    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
